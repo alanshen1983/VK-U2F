@@ -2,6 +2,8 @@
  *******************************************************************************
  *   FIDO U2F Authenticator
  *   (c) 2019 Vivokey Technologies 
+ *   Based off Ledger's U2F Authenticator
+ *   CTAP2 support base from CCU2F by tsenger
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.

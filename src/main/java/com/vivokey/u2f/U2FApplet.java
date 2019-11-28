@@ -1,7 +1,9 @@
 /*
  *******************************************************************************
  *   FIDO U2F Authenticator
- *   (c) 2015 Vivokey Technologies
+ *   (c) 2019 Vivokey Technologies
+ *   Based off Ledger's U2F Authenticator
+ *   CTAP2 support base from CCU2F by tsenger
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,8 +23,10 @@ package com.vivokey.u2f;
 
 import javacard.framework.*;
 import javacard.security.CryptoException;
+import javacard.security.ECKey;
 import javacard.security.ECPrivateKey;
 import javacard.security.KeyBuilder;
+import javacard.security.KeyPair;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
 
@@ -37,7 +41,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private byte[] scratch;
     private byte[] attestationCertificate;
     private boolean attestationCertificateSet;
-    private ECPrivateKey attestationPrivateKey;
+    private KeyPair attestationKP;
     private ECPrivateKey localPrivateKey;
     private boolean localPrivateTransient;
     private boolean counterOverflowed;
@@ -55,7 +59,16 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
     private static final byte PROPRIETARY_CLA = (byte) 0xF0;
     private static final byte FIDO_ADM_SET_ATTESTATION_CERT = (byte) 0x01;
-
+    
+    private static final byte CTAP2_CLA = (byte) 0x80;
+	private static final byte CTAP2_MAKE_CREDENTIAL = (byte) 0x01;
+	private static final byte CTAP2_GET_ASSERTION = (byte) 0x02;
+	private static final byte CTAP2_CANCEL = (byte) 0x03;
+	private static final byte CTAP2_GET_INFO = (byte) 0x04;
+	private static final byte CTAP2_CLIENT_PIN = (byte) 0x06;
+	private static final byte CTAP2_RESET = (byte) 0x07;
+	private static final byte CTAP2_GET_NEXT_ASSERTION = (byte) 0x08;
+	
     private static final byte SCRATCH_TRANSPORT_STATE = (byte) 0;
     private static final byte SCRATCH_CURRENT_OFFSET = (byte) 1;
     private static final byte SCRATCH_NONCERT_LENGTH = (byte) 3;
@@ -132,10 +145,10 @@ public class U2FApplet extends Applet implements ExtendedLength {
         localSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         flags = parameters[parametersOffset];
         attestationCertificate = new byte[Util.getShort(parameters, (short) (parametersOffset + 1))];
-        attestationPrivateKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
-        Secp256r1.setCommonCurveParameters(attestationPrivateKey);
-        attestationPrivateKey.setS(parameters, (short) (parametersOffset + 3), (short) 32);
-        attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
+        // Generate the attestation keypair
+        attestationKP = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        Secp256r1.setCommonCurveParameters((ECKey) attestationKP.getPublic());
+        attestationSignature.init(attestationKP.getPrivate(), Signature.MODE_SIGN);
         fidoImpl = new FIDOStandalone();
     }
 
@@ -441,10 +454,76 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 default:
                     ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
             }
-        } else {
+        } else if (buffer[ISO7816.OFFSET_CLA] == CTAP2_CLA) {
+			if (!attestationCertificateSet) {
+				ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+			}
+			switch (buffer[ISO7816.OFFSET_INS]) {
+			case CTAP2_MAKE_CREDENTIAL:
+				handleCTAP2MakeCredential(apdu);
+				break;
+			case CTAP2_GET_ASSERTION:
+				handleCTAP2GetAssertion(apdu);
+				break;
+			case CTAP2_CANCEL:
+				handleCTAP2Cancel(apdu);
+				break;
+			case CTAP2_GET_INFO:
+				handleCTAP2GetInfo(apdu);
+				break;
+			case CTAP2_CLIENT_PIN:
+				handleCTAP2ClientPIN(apdu);
+				break;
+			case CTAP2_RESET:
+				handleCTAP2Reset(apdu);
+				break;
+			case CTAP2_GET_NEXT_ASSERTION:
+				handleCTAP2GetNextAssertion(apdu);
+				break;
+			default:
+				ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+			}
+		} else {
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         }
     }
+    
+    private void handleCTAP2GetNextAssertion(APDU apdu) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleCTAP2Reset(APDU apdu) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleCTAP2ClientPIN(APDU apdu) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleCTAP2GetInfo(APDU apdu) {
+		byte[] buffer = apdu.getBuffer();
+		Util.arrayCopyNonAtomic(StaticCborData.AUTHENTICATOR_INFO, (short) 0, buffer, (short) 0, (short) StaticCborData.AUTHENTICATOR_INFO.length);
+		apdu.setOutgoingAndSend((short) 0, (short) StaticCborData.AUTHENTICATOR_INFO.length);
+		
+	}
+
+	private void handleCTAP2Cancel(APDU apdu) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleCTAP2GetAssertion(APDU apdu) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleCTAP2MakeCredential(APDU apdu) {
+		// clientDataHash = Challenge Parameter 
+		
+	}
 
     /* @override */
     public static void install(byte bArray[], short bOffset, byte bLength) throws ISOException {
