@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *   FIDO U2F Authenticator
- *   (c) 2015 Ledger
+ *   (c) 2019 Vivokey Technologies
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
  *******************************************************************************
  */
 
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 /**
  * Utlity functions.
